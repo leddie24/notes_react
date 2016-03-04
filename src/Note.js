@@ -1,26 +1,37 @@
 /** @jsx React.DOM */
-
 var React = require('react');
 
 var Note = React.createClass({
    getInitialState: function() {
       return {
          editing: false,
-         editText: ''
-      }
-   },
-   componentWillMount: function() {
-      this.style = {
-         right: this.randomBetween(0, window.innerWidth - 200) + 'px',
-         top: this.randomBetween(0, window.innerHeight - 200) + 'px',
-         transform: 'rotate(' + this.randomBetween(-10, 10) + 'deg)'
+         editText: '',
+         style: this.props.style
       }
    },
    componentDidMount: function() {
-      $(ReactDOM.findDOMNode(this)).draggable();
+      var self = this;
+      $(ReactDOM.findDOMNode(this)).draggable({
+         stop: function(event, ui) {
+              var pos = ui.helper.position(); // just get pos.top and pos.left
+              self.updatePosition(pos);
+         }
+      });
    },
    randomBetween: function(min, max) {
       return (min + Math.ceil(Math.random() * max));
+   },
+   updatePosition: function(pos) {
+      this.setState({
+         left: pos.left,
+         top: pos.top
+      });
+      var style = {
+         left: pos.left,
+         top: pos.top,
+         transform: this.state.style.transform
+      }
+      this.props.updatePosition(style, this.props.index);
    },
    updateTextState: function(event) {
       this.setState({ editText: event.target.value })
@@ -46,7 +57,7 @@ var Note = React.createClass({
    renderDisplay: function() {
       return (
          <div className="note"
-               style={this.style}>
+               style={this.state.style}>
             <div className="text">{this.props.children}</div>
             <div className="actions">
                <button onClick={this.edit.bind(null, this.props.children)}
@@ -59,7 +70,7 @@ var Note = React.createClass({
    renderForm: function() {
       return (
          <div className="note"
-               style={this.style}>
+               style={this.state.style}>
             <textarea autoFocus
                      onFocus={this.fixCaret}
                      onChange={this.updateTextState}

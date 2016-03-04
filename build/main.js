@@ -19029,25 +19029,44 @@ module.exports = require('./lib/React');
 /** @jsx React.DOM */
 
 var React = require('react');
-var Note = require('./Note')
+var Note = require('./Note');
 
 var Board = React.createClass({displayName: "Board",
    getInitialState: function() {
+      var notes = JSON.parse(localStorage.getItem('notes') || '[]');
+      console.log(notes);
       return {
-            notes: []
+         notes: notes
       }
    },
    nextId: function() {
-      this.uniqueId = this.uniqueId || 0;
-      return this.uniqueId++;
+      var str_count = localStorage.getItem("noteCount");
+      if (str_count == null || str_count == "null"){
+         count = 0;
+      } else {
+         count = parseInt(str_count);
+      }
+      count++;  
+      localStorage.setItem("noteCount", count);
+      return count;
    },
-   add: function(text) {
+   add: function() {
       var arr = this.state.notes;
       arr.push({
          id: this.nextId(),
-         note: text
+         note: '',
+         style: {
+            left: this.randomBetween(0, window.innerWidth - 200) + 'px',
+            top: this.randomBetween(0, window.innerHeight - 200) + 'px',
+            transform: 'rotate(' + this.randomBetween(-10, 10) + 'deg)'
+         }
       });
+      localStorage.setItem('notes', JSON.stringify(arr));
       this.setState({notes: arr});
+   },
+   randomBetween: function(min, max) {
+      var test = (min + Math.ceil(Math.random() * max));
+      return test;
    },
    componentWillMount: function() {
       var self = this;
@@ -19055,17 +19074,29 @@ var Board = React.createClass({displayName: "Board",
    update: function(newText, i) {
       var arr = this.state.notes;
       arr[i].note = newText;
+      localStorage.setItem('notes', JSON.stringify(arr));
       this.setState({notes: arr});
+   },
+   updatePosition: function(style, i) {
+      var arr = this.state.notes;
+      arr[i].style = style;
+      localStorage.setItem('notes', JSON.stringify(arr));
+      this.setState({
+         notes: arr
+      });
    },
    remove: function(i) {
       var arr = this.state.notes;
       arr.splice(i, 1);
+      localStorage.setItem('notes', JSON.stringify(arr));
       this.setState({notes: arr});
    },
    eachNote: function(note, i) {
       return (
             React.createElement(Note, {key: note.id, 
                   index: i, 
+                  style: note.style, 
+                  updatePosition: this.updatePosition, 
                   onChange: this.update, 
                   onRemove: this.remove
             }, note.note)
@@ -19076,7 +19107,7 @@ var Board = React.createClass({displayName: "Board",
          React.createElement("div", {className: "board"}, 
             this.state.notes.map(this.eachNote), 
             React.createElement("button", {className: "btn btn-sm glyphicon glyphicon-plus", 
-                     onClick: this.add.bind(null, '')})
+                     onClick: this.add})
          )
       )
    }
@@ -19086,28 +19117,39 @@ module.exports = Board;
 
 },{"./Note":159,"react":157}],159:[function(require,module,exports){
 /** @jsx React.DOM */
-
 var React = require('react');
 
 var Note = React.createClass({displayName: "Note",
    getInitialState: function() {
       return {
          editing: false,
-         editText: ''
-      }
-   },
-   componentWillMount: function() {
-      this.style = {
-         right: this.randomBetween(0, window.innerWidth - 200) + 'px',
-         top: this.randomBetween(0, window.innerHeight - 200) + 'px',
-         transform: 'rotate(' + this.randomBetween(-10, 10) + 'deg)'
+         editText: '',
+         style: this.props.style
       }
    },
    componentDidMount: function() {
-      $(ReactDOM.findDOMNode(this)).draggable();
+      var self = this;
+      $(ReactDOM.findDOMNode(this)).draggable({
+         stop: function(event, ui) {
+              var pos = ui.helper.position(); // just get pos.top and pos.left
+              self.updatePosition(pos);
+         }
+      });
    },
    randomBetween: function(min, max) {
       return (min + Math.ceil(Math.random() * max));
+   },
+   updatePosition: function(pos) {
+      this.setState({
+         left: pos.left,
+         top: pos.top
+      });
+      var style = {
+         left: pos.left,
+         top: pos.top,
+         transform: this.state.style.transform
+      }
+      this.props.updatePosition(style, this.props.index);
    },
    updateTextState: function(event) {
       this.setState({ editText: event.target.value })
@@ -19133,7 +19175,7 @@ var Note = React.createClass({displayName: "Note",
    renderDisplay: function() {
       return (
          React.createElement("div", {className: "note", 
-               style: this.style}, 
+               style: this.state.style}, 
             React.createElement("div", {className: "text"}, this.props.children), 
             React.createElement("div", {className: "actions"}, 
                React.createElement("button", {onClick: this.edit.bind(null, this.props.children), 
@@ -19146,7 +19188,7 @@ var Note = React.createClass({displayName: "Note",
    renderForm: function() {
       return (
          React.createElement("div", {className: "note", 
-               style: this.style}, 
+               style: this.state.style}, 
             React.createElement("textarea", {autoFocus: true, 
                      onFocus: this.fixCaret, 
                      onChange: this.updateTextState, 
